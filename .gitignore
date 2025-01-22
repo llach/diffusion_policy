@@ -12,6 +12,8 @@ _wandb
 fuse.cfg
 
 *.ai
+*.ckpt
+*.zarr.*
 
 # Generation results
 results/
