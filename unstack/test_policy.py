@@ -13,11 +13,6 @@ from diffusion_policy.policy.diffusion_unet_hybrid_image_policy import Diffusion
 from diffusion_policy.workspace.train_diffusion_unet_hybrid_workspace import TrainDiffusionUnetHybridWorkspace
 
 
-dataset_path = "pusht_cchi_v7_replay.zarr.zip"
-if not os.path.isfile(dataset_path):
-    id = "1KY1InLurpMvJDRb14L9NlXT_fEsCvVUq&confirm=t"
-    gdown.download(id=id, output=dataset_path, quiet=False)
-
 #|o|o|                             observations: 2
 #| |a|a|a|a|a|a|a|a|               actions executed: 8
 #|p|p|p|p|p|p|p|p|p|p|p|p|p|p|p|p| actions predicted: 16
@@ -29,18 +24,16 @@ max_steps = 10
 
 
 # create dataset from file
-print("loading dataset")
-dataset = PushTImageDataset(
-    zarr_path=dataset_path,
-    horizon=pred_horizon,
-)
-
 payload = torch.load(open("data/pusht_test/epoch=1850-test_mean_score=0.898.ckpt", 'rb'), pickle_module=dill)
 
 cfg = payload['cfg']
 cls = hydra.utils.get_class(cfg._target_)
+
 workspace : TrainDiffusionUnetHybridWorkspace = cls(cfg, output_dir="/tmp")
 workspace.load_payload(payload, exclude_keys=None, include_keys=None)
+
+dataset: PushTImageDataset = hydra.utils.instantiate(workspace.cfg.task.dataset)
+dataset = dataset.get_validation_dataset()
 
 # get policy from workspace
 policy = workspace.model
