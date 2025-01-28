@@ -20,11 +20,11 @@ pred_horizon = 16
 obs_horizon = 2
 action_horizon = 8
 device = "cpu"
-max_steps = 10
+max_steps = 100
 
 
 # create dataset from file
-payload = torch.load(open("data/pusht_test/epoch=1850-test_mean_score=0.898.ckpt", 'rb'), pickle_module=dill)
+payload = torch.load(open("data/pusht_test/latest.ckpt", 'rb'), pickle_module=dill)
 
 cfg = payload['cfg']
 cls = hydra.utils.get_class(cfg._target_)
@@ -50,8 +50,8 @@ for i in tqdm(range(max_steps), desc="Eval PushTImageEnv"):
 
     sample = dataset[i]
     actions_gt = sample['action']
-    with torch.no_grad():
 
+    with torch.no_grad():
         # first, cut according to obs horizon, then unsqueeze to have batch dimension of 1
         # cutting the obs_horizon is technically also done in predict_action, we do it here nevertheless so it's less confusing
         obs = dict_apply(sample['obs'], lambda x: x[:obs_horizon,:].unsqueeze(0))
@@ -60,6 +60,6 @@ for i in tqdm(range(max_steps), desc="Eval PushTImageEnv"):
         actions = policy.predict_action(obs)
         actions = dict_apply(actions, lambda x: torch.squeeze(x))
 
-        print(F.l1_loss(actions_gt, actions['action_pred']))
+        print(F.mse_loss(actions_gt, actions['action_pred']))
 
 print("done.")
