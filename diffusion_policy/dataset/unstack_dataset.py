@@ -60,7 +60,8 @@ class UnstackDataset(BaseImageDataset):
     def get_normalizer(self, mode='limits', **kwargs):
         data = {
             'action': self.replay_buffer['actions'],
-            'eef_pos': self.replay_buffer['eef_pos']
+            'eef_pos': self.replay_buffer['eef_pos'],
+            'gripper_open': self.replay_buffer['gripper_open']
         }
         normalizer = LinearNormalizer()
         normalizer.fit(data=data, last_n_dims=1, mode=mode, **kwargs)
@@ -72,6 +73,7 @@ class UnstackDataset(BaseImageDataset):
 
     def _sample_to_data(self, sample):
         image = np.moveaxis(sample['img'],-1,1)/255
+
         eef_pos = sample['eef_pos'].astype(np.float32)
         gripper_open = sample['gripper_open'].astype(np.float32)
 
