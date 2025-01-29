@@ -1,6 +1,6 @@
 name: unstack
 
-image_shape: &image_shape [3, 224, 299]
+image_shape: &image_shape [3, 96, 96]
 shape_meta: &shape_meta
   # acceptable types: rgb, low_dim
   obs:
@@ -21,7 +21,7 @@ env_runner:
 
 dataset:
   _target_: diffusion_policy.dataset.unstack_dataset.UnstackDataset
-  zarr_path: data/unstack/unstack_cloud_new.zarr
+  zarr_path: data/unstack/unstack_cloud_new_small.zarr
   horizon: ${horizon}
   pad_before: ${eval:'${n_obs_steps}-1'}
   pad_after: ${eval:'${n_action_steps}-1'}
