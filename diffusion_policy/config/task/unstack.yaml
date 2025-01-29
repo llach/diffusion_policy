@@ -28,12 +28,3 @@ dataset:
   seed: 42
   val_ratio: 0.02
   max_train_episodes: 90
-
-checkpoint:
-  topk:
-    monitor_key: val_action_mse_error
-    mode: max
-    k: 5
-    format_str: 'epoch={epoch:04d}-val_action_mse_error={val_action_mse_error:.6f}.ckpt'
-  save_last_ckpt: True
-  save_last_snapshot: False
