@@ -11,10 +11,10 @@ shape_meta: &shape_meta
       shape: [3]
       type: low_dim
     gripper_open:
-      shape: [3]
+      shape: [1]
       type: low_dim
   action:
-    shape: [2]
+    shape: [3]
 
 env_runner:
   _target_: diffusion_policy.env_runner.fake_runner.FakeRunner
