@@ -269,7 +269,10 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                         result = policy.predict_action(obs_dict)
                         pred_action = result['action_pred']
                         mse = torch.nn.functional.mse_loss(pred_action, gt_action)
-                        step_log['train_action_mse_error'] = mse.item()
+                        if is_unstack:
+                            step_log['train_action_rmse_error'] = torch.sqrt(mse).item()
+                        else:
+                            step_log['train_action_mse_error'] = mse.item()
                         del batch
                         del obs_dict
                         del gt_action
