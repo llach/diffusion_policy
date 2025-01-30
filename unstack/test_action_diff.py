@@ -14,20 +14,13 @@ replay_buffer = ReplayBuffer.copy_from_path(
 print(replay_buffer.meta["episode_ends"])
 
 prev_ee = 0
+means = []
 for (i, ee) in enumerate(replay_buffer.meta["episode_ends"]):
     episode = replay_buffer.data["eef_pos"][prev_ee:ee]
 
-    diffs = np.diff(episode, axis=0)
-    mdiffs = np.mean(diffs, axis=1)
-    cutoff = np.argmin(mdiffs==0.0)
-
-    print("episode", i)
-    print(episode[cutoff-1:cutoff+3])
-    print(episode[-2:])
+    diffs = np.abs(np.diff(episode, axis=0))
 
     plt.plot(list(range(len(diffs))), diffs)
-    plt.axvline(cutoff)
-
     plt.show()
 
     prev_ee = ee

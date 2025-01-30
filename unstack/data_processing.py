@@ -98,7 +98,8 @@ def get_episode_info(path):
         eef_pos -= eef_pos[0,:]
 
         delay = ts[-1]-rgb_stamps[-1] # there was delay in the timestamps. this fixes it. an absolute HACK
-        eef_pos, eef_rot = interpolate_gripper_positions_and_rotations(rgb_stamps+delay, ts, eef_pos, eef_rot)
+        rgb_stamps = rgb_stamps+delay
+        eef_pos, eef_rot = interpolate_gripper_positions_and_rotations(rgb_stamps, ts, eef_pos, eef_rot)
 
         # diffs = np.diff(eef_pos, axis=0)
         # mdiffs = np.mean(diffs, axis=1)
@@ -108,7 +109,7 @@ def get_episode_info(path):
         # print(eef_pos[cutoff-1:cutoff+3])
         # print(eef_pos[-2:])
 
-        # plt.plot(diffs)
+        # plt.plot(np.mean(np.abs(diffs), axis=1))
         # # plt.scatter(rgb_stamps, np.zeros_like(rgb_stamps), s=5)
         # plt.show()
 
