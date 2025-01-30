@@ -131,6 +131,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
             **cfg.checkpoint.topk
         )
         if is_unstack:
+            print("###################### UNSTACK")
             topk_manager.monitor_key = "val_action_rmse_error"
             topk_manager.format_str.replace(topk_manager.monitor_key, "val_action_rmse_error")
 
