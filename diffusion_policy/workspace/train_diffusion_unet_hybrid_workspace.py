@@ -251,11 +251,11 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                             # log epoch average validation loss
                             step_log['val_loss'] = val_loss
 
-                            val_mse = torch.mean(torch.tensor(val_mses)).item()
+                            val_mse = torch.mean(torch.tensor(val_mses))
                             if is_unstack:
                                 step_log['val_action_rmse_error'] = torch.sqrt(val_mse).item()
                             else:
-                                step_log['val_action_mse_error'] = val_mse
+                                step_log['val_action_mse_error'] = val_mse.item()
 
                 # run diffusion sampling on a training batch
                 if (self.epoch % cfg.training.sample_every) == 0:
