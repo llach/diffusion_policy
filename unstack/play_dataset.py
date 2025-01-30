@@ -21,9 +21,9 @@ def show_imgs(image_sequence = np.random.randint(0, 255, (100, 200, 200, 3), dty
 
 
 print("loading dataset ...")
-zarr_path = "data/unstack/unstack_cloud_new_small.zarr"
+zarr_path = "data/unstack/unstack_cloud.zarr"
 replay_buffer = ReplayBuffer.copy_from_path(
-     zarr_path, keys=['img', 'eef_pos', 'gripper_open', 'actions'])
+     zarr_path, keys=['img', 'eef_pos', 'gripper_open', 'action'])
 
 print(replay_buffer.data["img"].shape)
 show_imgs(replay_buffer.data["img"])

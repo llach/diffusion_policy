@@ -23,7 +23,7 @@ class UnstackDataset(BaseImageDataset):
         
         super().__init__()
         self.replay_buffer = ReplayBuffer.copy_from_path(
-            zarr_path, keys=['img', 'eef_pos', 'gripper_open', 'actions'])
+            zarr_path, keys=['img', 'eef_pos', 'gripper_open', 'action'])
         val_mask = get_val_mask(
             n_episodes=self.replay_buffer.n_episodes, 
             val_ratio=val_ratio,
@@ -59,7 +59,7 @@ class UnstackDataset(BaseImageDataset):
 
     def get_normalizer(self, mode='limits', **kwargs):
         data = {
-            'action': self.replay_buffer['actions'],
+            'action': self.replay_buffer['action'],
             'eef_pos': self.replay_buffer['eef_pos'],
             'gripper_open': self.replay_buffer['gripper_open']
         }
@@ -83,7 +83,7 @@ class UnstackDataset(BaseImageDataset):
                 'eef_pos': eef_pos, # T, 3
                 'gripper_open': gripper_open # T, 1
             },
-            'action': sample['actions'].astype(np.float32) # T, 3
+            'action': sample['action'].astype(np.float32) # T, 3
         }
         return data
     

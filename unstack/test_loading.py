@@ -14,11 +14,11 @@ zarr_path_out = zarr_path.replace(".zarr", "_small.zarr.zip")
 
 print("loading dataset ...")
 replay_buffer = ReplayBuffer.copy_from_path(
-     zarr_path, keys=['img', 'eef_pos', 'gripper_open', 'actions'])
+     zarr_path, keys=['img', 'eef_pos', 'gripper_open', 'action'])
 
 print("copying low dim keys ...")
 out_replay_buffer = ReplayBuffer.create_empty_zarr(storage=zarr.MemoryStore())
-for ld_key in ['eef_pos', 'gripper_open', 'actions']:
+for ld_key in ['eef_pos', 'gripper_open', 'action']:
     ds = replay_buffer.data[ld_key]
     chunks = (1,) + ds.shape[1:]
     out_replay_buffer.data.require_dataset(
