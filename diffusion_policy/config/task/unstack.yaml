@@ -21,7 +21,7 @@ env_runner:
 
 dataset:
   _target_: diffusion_policy.dataset.unstack_dataset.UnstackDataset
-  zarr_path: data/unstack/unstack_cloud_new_small.zarr
+  zarr_path: data/unstack/unstack_cloud.zarr
   horizon: ${horizon}
   pad_before: ${eval:'${n_obs_steps}-1'}
   pad_after: ${eval:'${n_action_steps}-1'}

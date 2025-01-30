@@ -19,6 +19,7 @@ import wandb
 import tqdm
 import numpy as np
 import shutil
+from diffusion_policy.dataset.unstack_dataset import UnstackDataset
 from diffusion_policy.workspace.base_workspace import BaseWorkspace
 from diffusion_policy.policy.diffusion_unet_hybrid_image_policy import DiffusionUnetHybridImagePolicy
 from diffusion_policy.dataset.base_dataset import BaseImageDataset
@@ -75,6 +76,8 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
         train_dataloader = DataLoader(dataset, **cfg.dataloader)
         normalizer = dataset.get_normalizer()
 
+        is_unstack = isinstance(dataset, UnstackDataset)
+
         # configure validation dataset
         val_dataset = dataset.get_validation_dataset()
         val_dataloader = DataLoader(val_dataset, **cfg.val_dataloader)
@@ -127,6 +130,9 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
             save_dir=os.path.join(self.output_dir, 'checkpoints'),
             **cfg.checkpoint.topk
         )
+        if is_unstack:
+            topk_manager.monitor_key = "val_action_rmse_error"
+            topk_manager.format_str.replace(topk_manager.monitor_key, "val_action_rmse_error")
 
         # device transfer
         device = torch.device(cfg.training.device)
@@ -246,7 +252,10 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                             step_log['val_loss'] = val_loss
 
                             val_mse = torch.mean(torch.tensor(val_mses)).item()
-                            step_log['val_action_mse_error'] = val_mse
+                            if is_unstack:
+                                step_log['val_action_rmse_error'] = torch.sqrt(val_mse).item()
+                            else:
+                                step_log['val_action_mse_error'] = val_mse
 
                 # run diffusion sampling on a training batch
                 if (self.epoch % cfg.training.sample_every) == 0:
