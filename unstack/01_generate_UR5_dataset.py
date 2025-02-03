@@ -35,8 +35,8 @@ def get_closest_idx(stamp, stamps):
 # %%
 @click.command()
 @click.argument('in_path', default="/home/llach/repos/unstack_cloud")
-@click.option('-o', '--output', help='Zarr path', default="unstack_cloud.zarr")
-@click.option('-or', '--out_res', type=str, default='96,96')
+@click.option('-o', '--output', help='Zarr path', default="unstack_cloud_224.zarr")
+@click.option('-or', '--out_res', type=str, default='224,224')
 @click.option('-cl', '--compression_level', type=int, default=99)
 @click.option('-n', '--num_workers', type=int, default=None)
 def main(in_path, output, out_res, compression_level, num_workers):

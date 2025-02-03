@@ -1,0 +1,34 @@
+name: unstack_224
+
+image_shape: &image_shape [3, 224, 224]
+shape_meta: &shape_meta
+  # acceptable types: rgb, low_dim
+  obs:
+    image:
+      shape: *image_shape
+      type: rgb
+      horizon: ${n_obs_steps}
+    eef_pos:
+      shape: [3]
+      type: low_dim
+      horizon: ${n_obs_steps}
+    gripper_open:
+      shape: [1]
+      type: low_dim
+      horizon: ${n_obs_steps}
+  action:
+    shape: [3]
+    horizon: ${horizon}
+
+env_runner:
+  _target_: diffusion_policy.env_runner.fake_runner.FakeRunner
+
+dataset:
+  _target_: diffusion_policy.dataset.unstack_dataset.UnstackDataset
+  zarr_path: data/unstack/unstack_cloud_224.zarr
+  horizon: ${horizon}
+  pad_before: ${eval:'${n_obs_steps}-1'}
+  pad_after: ${eval:'${n_action_steps}-1'}
+  seed: 42
+  val_ratio: 0.02
+  max_train_episodes: 90
