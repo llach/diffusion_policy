@@ -166,7 +166,7 @@ class TrainDiffusionTransformerTimmWorkspace(BaseWorkspace):
         if self.ema_model is not None:
             self.ema_model.to(device)
 
-
+        print()
         # save batch for sampling
         train_sampling_batch = None
 
@@ -279,10 +279,8 @@ class TrainDiffusionTransformerTimmWorkspace(BaseWorkspace):
                     B, T, _ = pred_action.shape
                     pred_action = pred_action.view(B, T, -1, 10)
                     gt_action = gt_action.view(B, T, -1, 10)
-                    step_log[f'{category}_action_mse_error'] = torch.nn.functional.mse_loss(pred_action, gt_action)
-                    step_log[f'{category}_action_mse_error_pos'] = torch.nn.functional.mse_loss(pred_action[..., :3], gt_action[..., :3])
-                    step_log[f'{category}_action_mse_error_rot'] = torch.nn.functional.mse_loss(pred_action[..., 3:9], gt_action[..., 3:9])
-                    step_log[f'{category}_action_mse_error_width'] = torch.nn.functional.mse_loss(pred_action[..., 9], gt_action[..., 9])
+                    step_log[f'{category}_action_rmse_error'] = torch.sqrt(torch.nn.functional.mse_loss(pred_action, gt_action)).item()
+                    
                 # run diffusion sampling on a training batch
                 if (self.epoch % cfg.training.sample_every) == 0 and accelerator.is_main_process:
                     with torch.no_grad():
@@ -296,6 +294,9 @@ class TrainDiffusionTransformerTimmWorkspace(BaseWorkspace):
                             val_sampling_batch = next(iter(val_dataloader))
                             batch = dict_apply(val_sampling_batch, lambda x: x.to(device, non_blocking=True))
                             gt_action = batch['action']
+                            
+                            step_log['val_loss'] = self.model.compute_loss(batch).item()
+
                             pred_action = policy.predict_action(batch['obs'])['action_pred']
                             log_action_mse(step_log, 'val', pred_action, gt_action)
 
