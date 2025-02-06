@@ -71,7 +71,8 @@ class UnstackDataset(BaseImageDataset):
     def __len__(self) -> int:
         return len(self.sampler)
 
-    def _sample_to_data(self, sample):
+    @staticmethod
+    def _sample_to_data(sample):
         image = np.moveaxis(sample['img'],-1,1)/255
 
         eef_pos = sample['eef_pos'].astype(np.float32)

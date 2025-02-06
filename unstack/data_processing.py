@@ -137,3 +137,14 @@ def process_data_directories(data_dirs):
         if episode_info is not None:
             episodes_info.append(episode_info)
     return episodes_info
+
+def iterate_episodes(replay_buffer):
+    prev_ee = 0
+    for ee in replay_buffer.meta["episode_ends"]:
+        yield {
+            "img": replay_buffer.data["img"][prev_ee:ee],
+            "eef_pos": replay_buffer.data["eef_pos"][prev_ee:ee],
+            "gripper_open": replay_buffer.data["gripper_open"][prev_ee:ee],
+            "action": replay_buffer.data["action"][prev_ee:ee],
+        }
+        prev_ee = ee

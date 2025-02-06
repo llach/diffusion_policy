@@ -117,7 +117,7 @@ ema:
   max_value: 0.9999
 
 
-batch_size: 58
+batch_size: 64
 dataloader:
   batch_size: ${batch_size}
   num_workers: 8
@@ -131,20 +131,6 @@ val_dataloader:
   shuffle: False
   pin_memory: True
   persistent_workers: True
-
-# dataloader:
-#   batch_size: 64
-#   num_workers: 16
-#   shuffle: True
-#   pin_memory: True
-#   persistent_workers: True
-
-# val_dataloader:
-#   batch_size: 64
-#   num_workers: 16
-#   shuffle: False
-#   pin_memory: True
-#   persistent_workers: True
 
 optimizer:
   _target_: torch.optim.AdamW
