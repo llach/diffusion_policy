@@ -116,7 +116,6 @@ ema:
   min_value: 0.0
   max_value: 0.9999
 
-
 batch_size: 64
 dataloader:
   batch_size: ${batch_size}

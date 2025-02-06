@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - task: lift_image_abs
+  - task: unstack
 
 name: train_diffusion_unet_hybrid
 _target_: diffusion_policy.workspace.train_diffusion_unet_hybrid_workspace.TrainDiffusionUnetHybridWorkspace
@@ -59,15 +59,16 @@ ema:
   min_value: 0.0
   max_value: 0.9999
 
+batch_size: 64
 dataloader:
-  batch_size: 64
+  batch_size: ${batch_size}
   num_workers: 8
   shuffle: True
   pin_memory: True
   persistent_workers: False
 
 val_dataloader:
-  batch_size: 64
+  batch_size: ${batch_size}
   num_workers: 8
   shuffle: False
   pin_memory: True
