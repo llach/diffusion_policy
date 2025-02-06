@@ -59,7 +59,7 @@ ema:
   min_value: 0.0
   max_value: 0.9999
 
-batch_size: 64
+batch_size: 128
 dataloader:
   batch_size: ${batch_size}
   num_workers: 8
@@ -89,7 +89,7 @@ training:
   # optimization
   lr_scheduler: cosine
   lr_warmup_steps: 500
-  num_epochs: 3050
+  num_epochs: 5000
   gradient_accumulate_every: 1
   # EMA destroys performance when used with BatchNorm
   # replace BatchNorm with GroupNorm.
