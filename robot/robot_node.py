@@ -167,15 +167,16 @@ class DiffusionPolicyNode(Node):
             
             print(actions[-1])
             Tdes = self.Tstart[:] # copy starting pose
-            Tdes[:3,3] -= actions[-1] # actions are relative to start pose -> add action to translation
+            Tdes[:3,3] += actions[-1] # actions are relative to start pose -> add action to translation
             
             desired_pose_msg = matrix_to_pose_msg(Tdes, "map")
             
             req = MoveArm.Request()
             req.execute = True
-            req.execution_time = 1.
+            req.execution_time = .05
             req.target_pose = desired_pose_msg
-            res = call_cli_sync(self, self.move_cli, req)
+            req.blocking = False
+            self.move_cli.call_async(req)
             
             # publish (debug) data
             self.desired_pose_pub.publish(desired_pose_msg)
