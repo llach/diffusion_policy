@@ -28,7 +28,7 @@ class DiffusionPolicyNode(Node):
         
         self.declare_parameter('rate', 15)
         self.declare_parameter('obs_hist', 2)
-        self.declare_parameter('device', 'gpu')
+        self.declare_parameter('device', 'cuda')
         self.declare_parameter('img_shape', [96,96])
         
         self.rate = self.get_parameter('rate').get_parameter_value().integer_value
@@ -52,7 +52,7 @@ class DiffusionPolicyNode(Node):
         
         while not self.tf_buffer.can_transform("map", "wrist_3_link", rclpy.time.Time()):
             print("waiting for tf ...")
-            time.sleep(0.05)
+            time.sleep(0.1)
             rclpy.spin_once(self)
             
         self.Tstart = get_trafo("map", "wrist_3_link", self.tf_buffer)
@@ -64,7 +64,7 @@ class DiffusionPolicyNode(Node):
         # periodically update robot pose (here: relative to starting pose)
         self.create_timer(1/(self.rate*2), self.update_pose, self.cbg)
 
-        # self.load_policy()
+        self.load_policy()
         
     def rgb_cb(self, msg):
         try:
@@ -103,7 +103,7 @@ class DiffusionPolicyNode(Node):
         if cfg.training.use_ema:
             policy = workspace.ema_model
 
-        device = torch.device(device)
+        device = torch.device(self.device)
         policy.to(device)
         policy.eval()
         print("\rloading policy .... done!")
