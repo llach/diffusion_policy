@@ -22,8 +22,9 @@ from diffusion_policy.common.pytorch_util import dict_apply
 from collections import deque
 from threading import Lock, Thread
 
+from stack_msgs.srv import MoveArm
+from stack_approach.helpers import get_trafo, inv, publish_img, matrix_to_pose_msg, call_cli_sync
 from diffusion_policy.workspace.train_diffusion_unet_hybrid_workspace import TrainDiffusionUnetHybridWorkspace
-from stack_approach.helpers import get_trafo, inv, publish_img
 
 np.set_printoptions(formatter={'float': lambda x: f"{x:.5f}"}) 
 
@@ -47,7 +48,7 @@ class DiffusionPolicyNode(Node):
         
         # Initialize tf2 buffer, listener and cvbridge
         self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self   )
+        self.tf_listener = TransformListener(self.tf_buffer, self)
         
         self.bridge = CvBridge()
 
@@ -63,6 +64,10 @@ class DiffusionPolicyNode(Node):
             rclpy.spin_once(self)
         self.Tstart = get_trafo("map", "wrist_3_link", self.tf_buffer)
         
+        self.move_cli = self.create_client(MoveArm, "move_arm")
+        while not self.move_cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('move arm service not available, waiting again...')
+        
         self.img_sub = self.create_subscription(
             CompressedImage, "/camera/color/image_raw/compressed", self.rgb_cb, 0, callback_group=self.cbg
         )
@@ -71,7 +76,7 @@ class DiffusionPolicyNode(Node):
         self.create_timer(1/(self.rate*2), self.update_pose)
         
         self.desired_pose_pub = self.create_publisher(
-            PoseStamped, "/line_img_error_delta", 0
+            PoseStamped, "/diff_desired_pose", 0
         )
         if self.debug:
             self.debug_img_pub = self.create_publisher(CompressedImage, '/camera/color/diff_debug/compressed', 0, callback_group=self.cbg)
@@ -160,6 +165,20 @@ class DiffusionPolicyNode(Node):
                 "gripper_open": np.array(self.obs_hist*[0.]), 
             })
             
+            print(actions[-1])
+            Tdes = self.Tstart[:] # copy starting pose
+            Tdes[:3,3] -= actions[-1] # actions are relative to start pose -> add action to translation
+            
+            desired_pose_msg = matrix_to_pose_msg(Tdes, "map")
+            
+            req = MoveArm.Request()
+            req.execute = True
+            req.execution_time = 1.
+            req.target_pose = desired_pose_msg
+            res = call_cli_sync(self, self.move_cli, req)
+            
+            # publish (debug) data
+            self.desired_pose_pub.publish(desired_pose_msg)
             if self.debug:
                 self.current_pose_pub.publish(Float32MultiArray(data=pos[-1]))
                 self.inference_sec_pub.publish(Float32(data=inference_sec))
