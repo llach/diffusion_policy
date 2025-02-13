@@ -12,15 +12,20 @@ import rclpy
 from rclpy.node import Node
 from tf2_ros import Buffer, TransformListener
 from cv_bridge import CvBridge, CvBridgeError
+from std_msgs.msg import Float32, Float32MultiArray
 from sensor_msgs.msg import CompressedImage
+from geometry_msgs.msg import PoseStamped
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
+from diffusion_policy.common.pytorch_util import dict_apply
 
 from collections import deque
 from threading import Lock, Thread
 
 from diffusion_policy.workspace.train_diffusion_unet_hybrid_workspace import TrainDiffusionUnetHybridWorkspace
-from stack_approach.helpers import get_trafo, inv
+from stack_approach.helpers import get_trafo, inv, publish_img
+
+np.set_printoptions(formatter={'float': lambda x: f"{x:.5f}"}) 
 
 class DiffusionPolicyNode(Node):
     def __init__(self):
@@ -29,8 +34,10 @@ class DiffusionPolicyNode(Node):
         self.declare_parameter('rate', 15)
         self.declare_parameter('obs_hist', 2)
         self.declare_parameter('device', 'cuda')
+        self.declare_parameter('debug', True)
         self.declare_parameter('img_shape', [96,96])
         
+        self.debug = self.get_parameter('debug').get_parameter_value().bool_value
         self.rate = self.get_parameter('rate').get_parameter_value().integer_value
         self.device = self.get_parameter('device').get_parameter_value().string_value
         self.obs_hist = self.get_parameter('obs_hist').get_parameter_value().integer_value
@@ -40,7 +47,7 @@ class DiffusionPolicyNode(Node):
         
         # Initialize tf2 buffer, listener and cvbridge
         self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.tf_listener = TransformListener(self.tf_buffer, self   )
         
         self.bridge = CvBridge()
 
@@ -54,7 +61,6 @@ class DiffusionPolicyNode(Node):
             print("waiting for tf ...")
             time.sleep(0.1)
             rclpy.spin_once(self)
-            
         self.Tstart = get_trafo("map", "wrist_3_link", self.tf_buffer)
         
         self.img_sub = self.create_subscription(
@@ -62,8 +68,20 @@ class DiffusionPolicyNode(Node):
         )
         
         # periodically update robot pose (here: relative to starting pose)
-        self.create_timer(1/(self.rate*2), self.update_pose, self.cbg)
-
+        self.create_timer(1/(self.rate*2), self.update_pose)
+        
+        self.desired_pose_pub = self.create_publisher(
+            PoseStamped, "/line_img_error_delta", 0
+        )
+        if self.debug:
+            self.debug_img_pub = self.create_publisher(CompressedImage, '/camera/color/diff_debug/compressed', 0, callback_group=self.cbg)
+            self.current_pose_pub = self.create_publisher(
+                Float32MultiArray, "/diff_current_pose", 0
+            )
+            self.inference_sec_pub = self.create_publisher(
+                Float32, "/diff_inference_secs", 0
+            )
+            
         self.load_policy()
         
     def rgb_cb(self, msg):
@@ -106,12 +124,47 @@ class DiffusionPolicyNode(Node):
         device = torch.device(self.device)
         policy.to(device)
         policy.eval()
+        policy.reset()
+        
+        self.policy = policy
         print("\rloading policy .... done!")
+        
+    def inference(self, obs):
+        with torch.no_grad():
+            start = time.time()
+            obs = dict_apply(obs, lambda x: torch.from_numpy(x).unsqueeze(0).to(self.device))
+            
+            # normalization of obs and unnormalization of actions happens in predict_action
+            actions = self.policy.predict_action(obs)
+            actions = dict_apply(actions, lambda x: torch.squeeze(x).cpu().numpy())['action']
+            inference_sec = round(time.time() - start, 4)
+            
+            return actions, inference_sec
         
     def execute(self):
         r = self.create_rate(self.rate)
         while len(self.position_buffer) < self.obs_hist and len(self.camera_buffer) < self.obs_hist:
             print('waiting for obs ...')
+            r.sleep()
+            
+        print("starting inference.")
+        while True:
+            with self.pose_lock:
+                with self.rgb_lock:
+                    img = np.array(self.camera_buffer)
+                    pos = np.array(self.position_buffer)
+            
+            actions, inference_sec = self.inference({
+                "image": img,
+                "eef_pos": pos,
+                "gripper_open": np.array(self.obs_hist*[0.]), 
+            })
+            
+            if self.debug:
+                self.current_pose_pub.publish(Float32MultiArray(data=pos[-1]))
+                self.inference_sec_pub.publish(Float32(data=inference_sec))
+                publish_img(self.debug_img_pub, np.transpose(img[-1], (1, 2, 0))*255)
+            
             r.sleep()
 
 def main(args=None):
