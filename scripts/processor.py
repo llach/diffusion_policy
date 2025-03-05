@@ -63,7 +63,7 @@ class ImageProcessor:
                     print(f"Processing '{input_path}' -> '{output_path}'")
                     processed_image = self.process_fn(input_path, output_path)  # Returns NumPy array
                     cv2.imwrite(str(output_path), processed_image)  # Save with OpenCV
-
+                
 # Example usage
 def example_process_fn(image_path):
     """

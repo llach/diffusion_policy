@@ -1,12 +1,10 @@
-import os
+import torch
 import cv2
 import numpy as np
 
 from datetime import datetime
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
-
-from stack_approach.helpers import pixel_to_point
 
 def calculate_mask_centers(mask_dicts):
     """
@@ -232,17 +230,18 @@ class SAM2Model:
 
     def __init__(self, 
         checkpoint = f"sam2.1_hiera_large.pt",
-        model_cfg = "sam2.1_hiera_l.yaml",
+        model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml",
         points_per_side = 24, 
         points_per_batch = 44, 
         pred_iou_thresh = 0.7,
         stability_score_thresh=0.9,
-        stability_score_offset=0.7
+        stability_score_offset=0.7,
+        device="cuda" if torch.cuda.is_available() else "cpu"
     ):
         
 
         self.mask_generator = SAM2AutomaticMaskGenerator(
-            model=build_sam2(model_cfg, checkpoint),
+            model=build_sam2(model_cfg, checkpoint, device = device),
             points_per_side=points_per_side,
             points_per_batch=points_per_batch,
             pred_iou_thresh=pred_iou_thresh,
@@ -307,9 +306,3 @@ class SAM2Model:
         cv2.putText(img_overlay, datetime.now().strftime('%H:%M:%S.%f')[:-3], (5, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         return img_overlay, line_pixels, line_center
-    
-    @staticmethod
-    def get_center_point(pixel, depth_img, K):
-        # get distance, convert to 3D point
-        line_dist = depth_img[pixel[1], pixel[0]]/1000 # convert to meters
-        return pixel_to_point(pixel, line_dist, K) # TODO reverse pixel order here too?

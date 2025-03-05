@@ -33,6 +33,7 @@ def get_dino_fn():
 
         return annotate(image_source=image_source, boxes=boxes, logits=logits, phrases=phrases)
     
+    
     return fn
 
     
