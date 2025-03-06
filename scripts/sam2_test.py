@@ -2,6 +2,8 @@ import os
 import torch
 import numpy as np
 
+from sam2_model import draw_anns
+
 from PIL import Image, ImageDraw, ImageFont
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
@@ -53,8 +55,9 @@ def run_sam2_with_params(image_path, params, output_folder, index):
 
     # For simplicity, we'll visualize the first mask (you can modify to show all or process further)
     if masks:
-        mask = masks[0]["segmentation"]
-        mask_image = Image.fromarray(mask).convert("RGB")
+        mask_w = 0.4
+        img_anns = draw_anns(masks)
+        img_overlay = np.clip((1-mask_w)*image + mask_w*img_anns, 0, 255).astype(np.uint8)
         
         # Create parameter text
         param_text = (
@@ -67,7 +70,7 @@ def run_sam2_with_params(image_path, params, output_folder, index):
         )
 
         # Add text to the mask image
-        final_image = add_text_to_image(mask_image, param_text)
+        final_image = add_text_to_image(img_overlay, param_text)
 
         # Save with index
         filename = os.path.splitext(os.path.basename(image_path))[0]
@@ -80,10 +83,10 @@ def main(input_folder):
     param_grid = {
         "checkpoint": "sam2.1_hiera_large.pt",
         "model_cfg": "configs/sam2.1/sam2.1_hiera_l.yaml",
-        "points_per_side": [24, 32],  # Test current and increased
-        "points_per_batch": [44],  # Keep as is for now
-        "pred_iou_thresh": [0.7, 0.86],  # Test current and higher
-        "stability_score_thresh": [0.9, 0.92],  # Test current and higher
+        "points_per_side": [24, 32, 48],  # Test current and increased
+        "points_per_batch": [44, 55, 66],  # Keep as is for now
+        "pred_iou_thresh": [0.5, 0.6, 0.7],  # Test current and higher
+        "stability_score_thresh": [0.8, 0.85, 0.9],  # Test current and higher
         "stability_score_offset": [0.7],  # Keep as is
         "min_mask_region_area": [25.0, 100.0],  # Test current and higher
         "crop_n_layers": [0, 1],  # Test with and without cropping
