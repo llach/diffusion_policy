@@ -36,22 +36,25 @@ def get_sam2_fn():
             device=device
         )
 
-        boxes_px = boxes * np.repeat([[W, H, W, H]], boxes.shape[0], axis=0)
-        boxes_px[:,:2] -= boxes_px[:,2:] / 2
-        boxes_px[:,2:] += boxes_px[:,:2]
-        boxes_px = np.array(boxes_px, dtype=np.int16)
+        if len(boxes) > 1:
+            boxes_px = boxes * np.repeat([[W, H, W, H]], boxes.shape[0], axis=0)
+            boxes_px[:,:2] -= boxes_px[:,2:] / 2
+            boxes_px[:,2:] += boxes_px[:,:2]
+            boxes_px = np.array(boxes_px, dtype=np.int16)
 
 
-        input_img = Image.open(in_path)
-        img_raw = np.array(input_img)
-        masks = sam_model.predict(img_raw)
+            input_img = Image.open(in_path)
+            img_raw = np.array(input_img)
+            masks = sam_model.predict(img_raw)
 
-        img_overlay, _, line_center = SAM2Model.detect_stack(img_raw, masks, boxes_px[0])
+            img_overlay, _, line_center = SAM2Model.detect_stack(img_raw, masks, boxes_px[0])
 
-        with open(str(out_path).replace(".png", ".pkl"), "wb") as f:
-            pickle.dump({"masks": masks, "boxes": boxes}, f)
+            with open(str(out_path).replace(".png", ".pkl"), "wb") as f:
+                pickle.dump({"masks": masks, "boxes": boxes}, f)
 
-        return cv2.cvtColor(img_overlay, cv2.COLOR_BGR2RGB)
+            return cv2.cvtColor(img_overlay, cv2.COLOR_BGR2RGB)
+        else: 
+            return image_source
     
     return fn
 
