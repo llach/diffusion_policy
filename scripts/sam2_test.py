@@ -57,7 +57,7 @@ def run_sam2_with_params(image_path, params, output_folder, index):
     if masks:
         mask_w = 0.4
         img_anns = draw_anns(masks)
-        img_overlay = np.clip((1-mask_w)*image + mask_w*img_anns, 0, 255).astype(np.uint8)
+        img_overlay = Image.fromarray(np.clip((1-mask_w)*image_np + mask_w*img_anns, 0, 255).astype(np.uint8), mode="RGB")
         
         # Create parameter text
         param_text = (
