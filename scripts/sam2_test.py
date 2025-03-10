@@ -91,6 +91,7 @@ def main(input_folder):
         "pred_iou_thresh": [0.5, 0.6, 0.7, 0.9],  # Test current and higher
         "stability_score_thresh": [0.8, 0.85, 0.9],  # Test current and higher
         "stability_score_offset": [0.7],  # Keep as is
+        "box_nms_thresh": [0.7],  # Keep as is
         "min_mask_region_area": [25.0, 100.0],  # Test current and higher
         "crop_n_layers": [0, 1],  # Test with and without cropping
         "crop_n_points_downscale_factor": [4, 2],  # Test current and lower
