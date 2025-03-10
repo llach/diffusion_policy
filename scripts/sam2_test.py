@@ -53,8 +53,8 @@ def run_sam2_with_params(image_path, params, output_folder, index):
         box_nms_thresh=params.get("box_nms_thresh", 0.7),  # Default value
         crop_n_layers=params.get("crop_n_layers", 0),  # Default to 0 if not set
         crop_n_points_downscale_factor=params.get("crop_n_points_downscale_factor", 4),
-        min_mask_region_area=params["min_mask_region_area"],
-        use_m2m=params.get("use_m2m", False)  # Default to False if not set
+        min_mask_region_area=100.0,
+        use_m2m=True
     )
 
     # Generate masks
@@ -76,8 +76,6 @@ def run_sam2_with_params(image_path, params, output_folder, index):
             f"box_nms_thresh={params['box_nms_thresh']}\n"
             f"crop_n_layers={params.get('crop_n_layers', 0)}\n"
             f"crop_n_points_downscale_factor={params.get('crop_n_points_downscale_factor', 0)}\n"
-            f"min_mask_region_area={params['min_mask_region_area']}\n"
-            f"use_m2m={params.get('use_m2m', False)}"
         )
 
         # Add text to the mask image
@@ -95,10 +93,8 @@ def main(input_folder):
         "stability_score_thresh": [0.8, 0.85, 0.9],  # Test current and higher
         "stability_score_offset": [0.7],  # Keep as is
         "box_nms_thresh": [0.7],  # Keep as is
-        "min_mask_region_area": [25.0, 100.0],  # Test current and higher
         "crop_n_layers": [0, 1],  # Test with and without cropping
         "crop_n_points_downscale_factor": [4, 2],  # Test current and lower
-        "use_m2m": [False, True],  # Test with and without
     }
 
     # Create output folder
