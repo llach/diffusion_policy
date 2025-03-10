@@ -1,6 +1,7 @@
 import os
 import torch
 import numpy as np
+from tqdm import tqdm
 
 from sam2_model import draw_anns
 
@@ -43,8 +44,8 @@ def run_sam2_with_params(image_path, params, output_folder, index):
         pred_iou_thresh=params["pred_iou_thresh"],
         stability_score_thresh=params["stability_score_thresh"],
         stability_score_offset=params["stability_score_offset"],
-        crop_n_layers=params.get("crop_n_layers", 0),  # Default to 0 if not set
         box_nms_thresh=params.get("box_nms_thresh", 0.7),  # Default value
+        crop_n_layers=params.get("crop_n_layers", 0),  # Default to 0 if not set
         crop_n_points_downscale_factor=params.get("crop_n_points_downscale_factor", 4),
         min_mask_region_area=params["min_mask_region_area"],
         use_m2m=params.get("use_m2m", False)  # Default to False if not set
@@ -62,10 +63,14 @@ def run_sam2_with_params(image_path, params, output_folder, index):
         # Create parameter text
         param_text = (
             f"points_per_side={params['points_per_side']}\n"
+            f"points_per_batch={params['points_per_batch']}\n"
             f"pred_iou_thresh={params['pred_iou_thresh']}\n"
             f"stability_score_thresh={params['stability_score_thresh']}\n"
-            f"min_mask_region_area={params['min_mask_region_area']}\n"
+            f"stability_score_offset={params['stability_score_offset']}\n"
+            f"box_nms_thresh={params['box_nms_thresh']}\n"
             f"crop_n_layers={params.get('crop_n_layers', 0)}\n"
+            f"crop_n_points_downscale_factor={params.get('crop_n_points_downscale_factor', 0)}\n"
+            f"min_mask_region_area={params['min_mask_region_area']}\n"
             f"use_m2m={params.get('use_m2m', False)}"
         )
 
@@ -81,11 +86,9 @@ def run_sam2_with_params(image_path, params, output_folder, index):
 def main(input_folder):
     # Define hyperparameter grid
     param_grid = {
-        "checkpoint": "sam2.1_hiera_large.pt",
-        "model_cfg": "configs/sam2.1/sam2.1_hiera_l.yaml",
         "points_per_side": [24, 32, 48],  # Test current and increased
         "points_per_batch": [44, 55, 66],  # Keep as is for now
-        "pred_iou_thresh": [0.5, 0.6, 0.7],  # Test current and higher
+        "pred_iou_thresh": [0.5, 0.6, 0.7, 0.9],  # Test current and higher
         "stability_score_thresh": [0.8, 0.85, 0.9],  # Test current and higher
         "stability_score_offset": [0.7],  # Keep as is
         "min_mask_region_area": [25.0, 100.0],  # Test current and higher
@@ -110,10 +113,10 @@ def main(input_folder):
     print(image_files)
 
     # Process each image
-    for image_file in image_files:
+    for image_file in tqdm(image_files):
         image_path = os.path.join(input_folder, image_file)
         index = 0
-        for params_tuple in param_combinations:
+        for params_tuple in tqdm(param_combinations):
             params = dict(zip(param_names, params_tuple))
             run_sam2_with_params(image_path, params, output_folder, index)
             index += 1
