@@ -81,7 +81,6 @@ def run_sam2_with_params(image_path, params, output_folder, index):
         filename = os.path.splitext(os.path.basename(image_path))[0]
         output_path = os.path.join(output_folder, f"{filename}_{index}.png")
         final_image.save(output_path)
-        print(f"Saved result for {image_path} with index {index}")
 
 def main(input_folder):
     # Define hyperparameter grid
