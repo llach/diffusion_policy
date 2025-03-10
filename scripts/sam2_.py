@@ -65,7 +65,7 @@ if __name__ == "__main__":
     input_dir = f"{os.environ['HOME']}/repos/unstack_classify/raw/"
 
     # Create an instance of ImageProcessor with dry_run option
-    processor = ImageProcessor(input_dir, "sam2", get_sam2_fn())
+    processor = ImageProcessor(input_dir, "sam2_new", get_sam2_fn())
 
     # Run the processing
     processor.process_images(dry_run=False)

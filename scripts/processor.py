@@ -1,6 +1,8 @@
 import os
 import cv2
 
+
+from tqdm import tqdm
 from pathlib import Path
 
 class ImageProcessor:
@@ -30,7 +32,7 @@ class ImageProcessor:
             raise ValueError(f"Input directory '{self.input_dir}' does not exist")
 
         # Iterate through all subdirectories and files
-        for root, dirs, files in os.walk(self.input_dir):
+        for root, dirs, files in tqdm(os.walk(self.input_dir)):
             # Relative path from input_dir to current subfolder
             rel_path = Path(root).relative_to(self.input_dir)
             # Construct corresponding output directory
@@ -41,7 +43,7 @@ class ImageProcessor:
                 output_subdir.mkdir(parents=True, exist_ok=True)
 
             # Process each file in the current subdirectory
-            for file in files:
+            for file in tqdm(files):
                 if file.lower().endswith('.png'):  # Check for PNG files
                     input_path = Path(root) / file
                     output_path = output_subdir / file
