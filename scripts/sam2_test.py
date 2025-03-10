@@ -28,6 +28,12 @@ def add_text_to_image(image, text):
     return image
 
 def run_sam2_with_params(image_path, params, output_folder, index):
+     # Save with index
+    filename = os.path.splitext(os.path.basename(image_path))[0]
+    output_path = os.path.join(output_folder, f"{filename}_{index}.png")
+    if os.path.isfile(output_path):
+        return 
+    
     # Load image
     image = Image.open(image_path).convert("RGB")
     image_np = np.array(image)
@@ -56,7 +62,7 @@ def run_sam2_with_params(image_path, params, output_folder, index):
 
     # For simplicity, we'll visualize the first mask (you can modify to show all or process further)
     if masks:
-        mask_w = 0.4
+        mask_w = 0.8
         img_anns = draw_anns(masks)
         img_overlay = Image.fromarray(np.clip((1-mask_w)*image_np + mask_w*img_anns, 0, 255).astype(np.uint8), mode="RGB")
         
@@ -77,9 +83,7 @@ def run_sam2_with_params(image_path, params, output_folder, index):
         # Add text to the mask image
         final_image = add_text_to_image(img_overlay, param_text)
 
-        # Save with index
-        filename = os.path.splitext(os.path.basename(image_path))[0]
-        output_path = os.path.join(output_folder, f"{filename}_{index}.png")
+       
         final_image.save(output_path)
 
 def main(input_folder):
