@@ -225,3 +225,9 @@ def main(parent_dir):
     test_acc = 100. * test_correct / test_total
     logging.info(f"Test Loss={test_loss:.4f}, Test Acc={test_acc:.2f}%")
     print(f"Final Test Accuracy: {test_acc:.2f}%")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Verify preprocessed dataset by visualizing images with labels")
+    parser.add_argument("parent_dir", type=str, help="Parent directory containing stack_classify/")
+    args = parser.parse_args()
+    main(args.parent_dir)
