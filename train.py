@@ -23,7 +23,8 @@ OmegaConf.register_new_resolver("eval", eval, replace=True)
 @hydra.main(
     version_base=None,
     config_path=str(pathlib.Path(__file__).parent.joinpath(
-        'diffusion_policy','config'))
+        'diffusion_policy','config')),
+        config_name="train_diffusion_unet_hybrid_workspace.yaml"
 )
 def main(cfg: OmegaConf):
     # resolve immediately so all the ${now:} resolvers

@@ -1,3 +1,4 @@
+import os
 import pickle
 import dill
 import hydra
@@ -39,7 +40,12 @@ device = "cuda:0"
 obs_horizon = 3
 prediction_horizon = 16
 
-payload = torch.load(open("data/outputs/2025.01.30/15.18.29_train_diffusion_unet_hybrid_unstack/checkpoints/latest.ckpt", 'rb'), pickle_module=dill)
+print("loading checkpoint ...")
+# payload = torch.load(open("data/outputs/2025.01.30/15.18.29_train_diffusion_unet_hybrid_unstack/checkpoints/latest.ckpt", 'rb'), pickle_module=dill)
+# payload = torch.load(open(f"{os.environ['HOME']}/down2_bs128_eps10000.ckpt", 'rb'), pickle_module=dill)
+payload = torch.load(open(f"{os.environ['HOME']}/repos/ckp/down2_bs128_eps10000.ckpt", 'rb'), pickle_module=dill)
+# payload = torch.load(open(f"/media/llach/DATA/down2_bs128_eps10000.ckpt", 'rb'), pickle_module=dill)
+print("loading done!")
 
 cfg = payload['cfg']
 cls = hydra.utils.get_class(cfg._target_)

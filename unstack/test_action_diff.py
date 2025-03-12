@@ -6,7 +6,7 @@ from diffusion_policy.common.replay_buffer import ReplayBuffer
 register_codecs()
 
 out_shape = (96,96)
-zarr_path = "unstack_cloud_down2.zarr"
+zarr_path = "data/unstack/unstack_cloud_down3.zarr"
 
 print("loading dataset ...")
 replay_buffer = ReplayBuffer.copy_from_path(

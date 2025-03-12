@@ -41,7 +41,9 @@ _ = out_replay_buffer.data.require_dataset(
         compressor=img_compressor,
         dtype=np.uint8
     )
-out_replay_buffer.data['img'] = img_compressor.encode(img_arr)
+# com_imgs = img_compressor.encode(img_arr[:2])
+# out_replay_buffer.data['img'] = img_compressor.encode(img_arr)
+out_replay_buffer.data['img'] = img_arr
 
 with zarr.ZipStore(f"{output}.zip", mode='w') as zip_store:
     out_replay_buffer.save_to_store(
