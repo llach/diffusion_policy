@@ -10,7 +10,9 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import argparse
 import logging
+from datetime import datetime  # Added for timestamp
 
+# Custom Dataset class (unchanged)
 class ImageDataset(Dataset):
     def __init__(self, images, labels, transform=None):
         self.images = images
@@ -24,26 +26,35 @@ class ImageDataset(Dataset):
         image = self.images[idx]
         label = self.labels[idx]
 
-        # Apply transforms if provided
         if self.transform:
-            image = self.transform(image)  # This handles ToTensor(), converting to (C, H, W)
+            image = self.transform(image)
 
-        # If no transform (or after transform), ensure image is a tensor
         if not isinstance(image, torch.Tensor):
-            image = torch.tensor(image, dtype=torch.float32).permute(2, 0, 1)  # (H, W, C) -> (C, H, W)
+            image = torch.tensor(image, dtype=torch.float32).permute(2, 0, 1)
 
         label = torch.tensor(label, dtype=torch.long)
         return image, label
 
 def main(parent_dir):
-    # Setup directories
+    # Setup base directory
     data_dir = os.path.join(parent_dir, 'stack_classify')
-    checkpoint_dir = os.path.join(data_dir, 'checkpoints')
+
+    # Create timestamped training directory (format: YYYY_MM_DD-HH_MM)
+    timestamp = datetime.now().strftime("%Y_%m_%d-%H_%M")
+    training_dir = os.path.join(data_dir, 'training', timestamp)
+    os.makedirs(training_dir, exist_ok=True)
+
+    # Setup checkpoint directory and logging within the timestamped directory
+    checkpoint_dir = os.path.join(training_dir, 'checkpoints')
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     # Setup logging
-    logging.basicConfig(filename=os.path.join(data_dir, 'training.log'), level=logging.INFO,
+    log_file = os.path.join(training_dir, 'training.log')
+    logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Log the start of training
+    logging.info(f"Starting training with output directory: {training_dir}")
 
     # Load preprocessed data
     images = np.load(os.path.join(data_dir, 'images.npy'))
@@ -57,23 +68,16 @@ def main(parent_dir):
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=42)
 
     # Define data augmentation and transforms
-        # Define data augmentation and transforms
     train_transform = transforms.Compose([
         transforms.ToPILImage(),
-        # Geometric transformations
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomRotation(degrees=10),
         transforms.RandomAffine(degrees=0, scale=(0.9, 1.1)),
-        # Color and lighting transformations
         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-        # Sharpness and blur
         transforms.RandomAdjustSharpness(sharpness_factor=2.0, p=0.3),
         transforms.RandomApply([transforms.GaussianBlur(kernel_size=3)], p=0.2),
-        # Occasionally convert to grayscale
         transforms.RandomGrayscale(p=0.1),
-        # Convert to tensor
         transforms.ToTensor(),
-        # Random erasing (applied on tensor)
         transforms.RandomErasing(p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3)),
     ])
 
@@ -106,7 +110,6 @@ def main(parent_dir):
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
     # Training loop
-        # Training loop
     num_epochs = 30
     best_val_acc = 0.0
 
@@ -222,9 +225,3 @@ def main(parent_dir):
     test_acc = 100. * test_correct / test_total
     logging.info(f"Test Loss={test_loss:.4f}, Test Acc={test_acc:.2f}%")
     print(f"Final Test Accuracy: {test_acc:.2f}%")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train ResNet50 for image classification")
-    parser.add_argument("parent_dir", type=str, help="Parent directory containing stack_classify/")
-    args = parser.parse_args()
-    main(args.parent_dir)
