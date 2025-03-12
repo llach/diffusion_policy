@@ -57,12 +57,24 @@ def main(parent_dir):
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1, random_state=42)
 
     # Define data augmentation and transforms
+        # Define data augmentation and transforms
     train_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.RandomAffine(0, scale=(0.9, 1.1)),
+        # Geometric transformations
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=10),
+        transforms.RandomAffine(degrees=0, scale=(0.9, 1.1)),
+        # Color and lighting transformations
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        # Sharpness and blur
+        transforms.RandomAdjustSharpness(sharpness_factor=2.0, p=0.3),
+        transforms.RandomApply([transforms.GaussianBlur(kernel_size=3)], p=0.2),
+        # Occasionally convert to grayscale
+        transforms.RandomGrayscale(p=0.1),
+        # Convert to tensor
         transforms.ToTensor(),
+        # Random erasing (applied on tensor)
+        transforms.RandomErasing(p=0.2, scale=(0.02, 0.2), ratio=(0.3, 3.3)),
     ])
 
     val_transform = transforms.Compose([
@@ -93,6 +105,7 @@ def main(parent_dir):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
+    # Training loop
         # Training loop
     num_epochs = 30
     best_val_acc = 0.0
@@ -161,13 +174,54 @@ def main(parent_dir):
         # Save checkpoint if validation accuracy improves
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best_model.pth'))
-            logging.info(f"Epoch {epoch+1}: New best model saved with val_acc={val_acc:.2f}%")
+            best_model_path = os.path.join(checkpoint_dir, f'best_model_val_loss_{val_loss:.4f}.pth')
+            torch.save(model.state_dict(), best_model_path)
+            print(f"New best model saved at epoch {epoch+1} with val_acc={val_acc:.2f}% and val_loss={val_loss:.4f}")
+            logging.info(f"Epoch {epoch+1}: New best model saved with val_acc={val_acc:.2f}% and val_loss={val_loss:.4f}")
+
+        # Save model every 5 epochs
+        if (epoch + 1) % 5 == 0:
+            checkpoint_path = os.path.join(checkpoint_dir, f'checkpoint_epoch_{epoch+1}_val_loss_{val_loss:.4f}.pth')
+            torch.save(model.state_dict(), checkpoint_path)
+            print(f"Checkpoint saved at epoch {epoch+1} with val_loss={val_loss:.4f}")
+            logging.info(f"Checkpoint saved at epoch {epoch+1} with val_loss={val_loss:.4f}")
 
         # Log metrics
         logging.info(f"Epoch {epoch+1}: Train Loss={train_loss:.4f}, Train Acc={train_acc:.2f}%, "
                      f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.2f}%")
         scheduler.step()
+
+    # Save the final model after training ends
+    final_model_path = os.path.join(checkpoint_dir, f'final_model_epoch_{num_epochs}_val_loss_{val_loss:.4f}.pth')
+    torch.save(model.state_dict(), final_model_path)
+    print(f"Final model saved after training at epoch {num_epochs} with val_loss={val_loss:.4f}")
+    logging.info(f"Final model saved after training at epoch {num_epochs} with val_loss={val_loss:.4f}")
+
+    # Evaluate on test set
+    model.load_state_dict(torch.load(best_model_path))
+    model.eval()
+    test_loss = 0.0
+    test_correct = 0
+    test_total = 0
+
+    test_bar = tqdm(test_loader, desc="Testing")
+    with torch.no_grad():
+        for images, labels in test_bar:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+            test_loss += loss.item()
+            _, predicted = outputs.max(1)
+            test_total += labels.size(0)
+            test_correct += predicted.eq(labels).sum().item()
+
+            test_bar.set_postfix(loss=test_loss/len(test_bar), acc=100.*test_correct/test_total)
+
+    test_loss /= len(test_loader)
+    test_acc = 100. * test_correct / test_total
+    logging.info(f"Test Loss={test_loss:.4f}, Test Acc={test_acc:.2f}%")
+    print(f"Final Test Accuracy: {test_acc:.2f}%")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train ResNet50 for image classification")
