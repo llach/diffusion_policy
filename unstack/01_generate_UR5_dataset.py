@@ -27,8 +27,13 @@ def get_closest_idx(stamp, stamps):
 
 
 @click.command()
-@click.argument("in_path", default="/home/llach/repos/unstack_cloud")
-@click.option("-o", "--output", help="Zarr path", default="unstack_cloud_224.zarr")
+@click.argument("in_path", default="/home/obarbany/code/diffusion_policy/data/raw_unstack_cloud")
+@click.option(
+    "-o",
+    "--output",
+    help="Zarr path",
+    default="/home/obarbany/code/diffusion_policy/data/unstack_cloud_224.zarr",
+)
 @click.option("-or", "--out_res", type=str, default="224,224")
 @click.option("-cl", "--compression_level", type=int, default=99)
 @click.option("-n", "--num_workers", type=int, default=None)
@@ -83,7 +88,7 @@ def main(in_path, output, out_res, compression_level, num_workers):
 
     # dump images
     img_compressor = JpegXl(level=compression_level, numthreads=1)
-    _ = out_replay_buffer.data.require_dataset(
+    _ = out_replay_buffer.data.require_dataset(  # type: ignore
         name="img",
         shape=(out_replay_buffer["eef_pos"].shape[0],) + out_res + (3,),
         chunks=(1,) + out_res + (3,),
@@ -136,6 +141,7 @@ def main(in_path, output, out_res, compression_level, num_workers):
                         curr_task_idx += 1
                 else:
                     assert False
+        return mp4_path
 
     with tqdm(total=len(vid_args)) as pbar:
         # one chunk per thread, therefore no synchronization needed
@@ -158,8 +164,7 @@ def main(in_path, output, out_res, compression_level, num_workers):
 
     # dump to disk
     print(f"Saving ReplayBuffer to {output}")
-    with zarr.ZipStore(f"{output}.zip", mode="w") as zip_store:
-        out_replay_buffer.save_to_store(store=zip_store)
+    out_replay_buffer.save_to_path(output, mode="w", storage=zarr.DirectoryStore(output))
     print(f"Done! {len(all_videos)} videos used in total!")
     print(f"n_steps {out_replay_buffer.n_steps} | n_episodes {out_replay_buffer.n_episodes}")
 
