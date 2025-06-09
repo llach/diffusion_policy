@@ -25,9 +25,16 @@ def get_episode_info(path):
         raw = json.load(f)
 
     ts = np.array([d[0] for d in raw])
-    eef_poses = np.array(
-        [np.concatenate([pose[2], st.Rotation.from_quat(pose[3]).as_rotvec()]) for pose in raw]
-    )
+    eef_position = np.array([pose[2] for pose in raw])
+    eef_rotation = [st.Rotation.from_quat(pose[3]) for pose in raw]
+
+    # Make position relative to the first one
+    eef_position = eef_position - eef_position[0]
+    # Make rotation relative to the first one. Be careful, this is not a simple subtraction!
+    first_rotation = eef_rotation[0]
+    eef_rotation = np.array([(first_rotation.inv() * rot).as_rotvec() for rot in eef_rotation])
+
+    eef_poses = np.concatenate((eef_position, eef_rotation), axis=-1)
 
     # Interpolator expects timestamps to be in STRICT ascending order
     if not np.all(np.diff(ts) > 0):
