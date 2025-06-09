@@ -1,8 +1,7 @@
 name: unstack
 
 image_shape: &image_shape [3, 96, 96]
-shape_meta: &shape_meta
-  # acceptable types: rgb, low_dim
+shape_meta: &shape_meta # acceptable types: rgb, low_dim
   obs:
     image:
       shape: *image_shape
