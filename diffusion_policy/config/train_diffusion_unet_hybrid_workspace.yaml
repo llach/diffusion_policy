@@ -18,11 +18,14 @@ past_action_visible: False
 keypoint_visible_rate: 1.0
 obs_as_global_cond: True
 
+debug: false
+use_wandb: true
+
 policy:
   _target_: diffusion_policy.policy.diffusion_unet_hybrid_image_policy.DiffusionUnetHybridImagePolicy
 
   shape_meta: ${shape_meta}
-  
+
   noise_scheduler:
     _target_: diffusers.schedulers.scheduling_ddpm.DDPMScheduler
     num_train_timesteps: 100
@@ -84,7 +87,7 @@ optimizer:
 training:
   device: "cuda:0"
   seed: 42
-  debug: False
+  debug: ${debug}
   resume: True
   # optimization
   lr_scheduler: cosine
@@ -120,7 +123,7 @@ checkpoint:
     monitor_key: val_action_rmse_error
     mode: max
     k: 5
-    format_str: 'epoch={epoch:04d}-val_action_rmse_error={val_action_rmse_error:.10f}.ckpt'
+    format_str: "epoch={epoch:04d}-val_action_rmse_error={val_action_rmse_error:.10f}.ckpt"
   save_last_ckpt: True
   save_last_snapshot: False
 
