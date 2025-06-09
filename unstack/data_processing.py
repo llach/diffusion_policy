@@ -3,68 +3,7 @@ import pathlib
 
 import numpy as np
 import scipy.spatial.transform as st
-from scipy.spatial.transform import Rotation, Slerp
-
-
-def interpolate_gripper_positions_and_rotations(
-    rgb_stamps, gripper_stamps, gripper_positions, gripper_rotations
-):
-    interpolated_positions = []
-    interpolated_rotations = []
-
-    # Convert gripper_rotations (quaternions) to Rotation objects
-    gripper_rotations_obj = Rotation.from_quat(gripper_rotations)
-
-    for rgb_time in rgb_stamps:
-        # Find the index of the gripper timestamp just before the rgb_time
-        before_index = np.where(gripper_stamps < rgb_time)[0]
-        if len(before_index) == 0:
-            before_index = 0
-        else:
-            before_index = before_index[-1]
-
-        # Find the index of the gripper timestamp just after the rgb_time
-        after_index = np.where(gripper_stamps > rgb_time)[0]
-        if len(after_index) == 0:
-            after_index = len(gripper_stamps) - 1
-        else:
-            after_index = after_index[0]
-
-        # Get the timestamps, positions, and rotations before and after
-        time_before = gripper_stamps[before_index]
-        time_after = gripper_stamps[after_index]
-        position_before = gripper_positions[before_index]
-        position_after = gripper_positions[after_index]
-        rotation_before = gripper_rotations_obj[before_index]
-
-        # Perform linear interpolation for positions
-        if time_after == time_before:  # Avoid division by zero
-            interpolated_position = position_before
-        else:
-            interpolated_position = position_before + (
-                (rgb_time - time_before) / (time_after - time_before)
-            ) * (position_after - position_before)
-
-        # Perform spherical linear interpolation (slerp) for rotations
-        if time_after == time_before:
-            interpolated_rotation = rotation_before
-        else:
-            slerp = Slerp(
-                [time_before, time_after],
-                Rotation.from_quat(
-                    [gripper_rotations[before_index], gripper_rotations[after_index]]
-                ),
-            )
-            interpolated_rotation = slerp([rgb_time])[0]
-
-        interpolated_positions.append(interpolated_position)
-        interpolated_rotations.append(interpolated_rotation.as_quat())  # Convert back to quaternion
-
-    return np.array(interpolated_positions), np.array(interpolated_rotations)
-
-
-def get_closest_idx(stamp, stamps):
-    return np.argmin(np.abs(stamps - stamp))
+from pose_trajectory_interpolator import PoseTrajectoryInterpolator
 
 
 def get_episode_info(path):
@@ -85,49 +24,50 @@ def get_episode_info(path):
     with open(path.joinpath("gripper_poses.json"), "r") as f:
         raw = json.load(f)
 
-        ts = np.array([d[0] for d in raw])
-        eef_pos = np.array([d[2] for d in raw])
-        eef_rot = np.array([d[3] for d in raw])
-
-        # TODO rot is not relative to start
-        eef_pos -= eef_pos[0, :]
-
-        delay = (
-            ts[-1] - rgb_stamps[-1]
-        )  # there was delay in the timestamps. this fixes it. an absolute HACK
-        rgb_stamps = rgb_stamps + delay
-        eef_pos, eef_rot = interpolate_gripper_positions_and_rotations(
-            rgb_stamps, ts, eef_pos, eef_rot
-        )
-
-        # diffs = np.diff(eef_pos, axis=0)
-        # mdiffs = np.mean(diffs, axis=1)
-        # cutoff = np.argmin(mdiffs==0.0)
-
-        # print("-----------")
-        # print(eef_pos[cutoff-1:cutoff+3])
-        # print(eef_pos[-2:])
-
-        # plt.plot(np.mean(np.abs(diffs), axis=1))
-        # # plt.scatter(rgb_stamps, np.zeros_like(rgb_stamps), s=5)
-        # plt.show()
-
-    episode_data = dict()
-    episode_data["eef_pos"] = eef_pos.astype(np.float32)
-    episode_data["eef_rot_axis_angle"] = (
-        st.Rotation.from_quat(eef_rot).as_rotvec().astype(np.float32)
+    ts = np.array([d[0] for d in raw])
+    eef_poses = np.array(
+        [np.concatenate([pose[2], st.Rotation.from_quat(pose[3]).as_rotvec()]) for pose in raw]
     )
+
+    # Interpolator expects timestamps to be in STRICT ascending order
+    if not np.all(np.diff(ts) > 0):
+        # Check that timestamps are at least in ascending order
+        assert np.all(np.diff(ts) >= 0), "Timestamps must be in ascending order"
+        # Check if duplicates have the same pose values
+        duplicated_indices = np.where(np.diff(ts) == 0)[0]
+        assert np.array_equal(
+            eef_poses[duplicated_indices], eef_poses[duplicated_indices + 1]
+        ), "Duplicate timestamps must have the same pose values"
+
+        # Delete duplicates
+        _, unique_indices = np.unique(ts, return_index=True)
+        ts = ts[unique_indices]
+        eef_poses = eef_poses[unique_indices]
+
+    delay = (
+        ts[-1] - rgb_stamps[-1]
+    )  # there was delay in the timestamps. this fixes it. an absolute HACK
+    rgb_stamps = rgb_stamps + delay
+
+    interpolator = PoseTrajectoryInterpolator(times=ts, poses=eef_poses)
+    interpolated_eef_poses = interpolator(rgb_stamps)
+
+    # Discard the last observation as it has no action associated with it
+    episode_data = dict()
+    episode_data["eef_pos"] = interpolated_eef_poses[:-1, :3].astype(np.float32)
+    episode_data["eef_rot_axis_angle"] = interpolated_eef_poses[:-1, 3:].astype(np.float32)
     episode_data["gripper_open"] = np.expand_dims(
         np.array(rgb_stamps) < gripper_close_time, axis=-1
-    ).astype(np.uint8)
-    episode_data["action"] = np.append(eef_pos[1:], eef_pos[-1:], axis=0)
+    )[:-1].astype(np.uint8)
+    # Actions are the next EEF pose
+    episode_data["action"] = interpolated_eef_poses[1:]
 
     episode_info = {
         "episode_data": episode_data,
         "video_path": path / "rgb.mp4",
         "frame_start": 0,
-        "frame_end": len(rgb_stamps),
-        "rgb_stamps": rgb_stamps,
+        "frame_end": len(rgb_stamps) - 1,
+        "rgb_stamps": rgb_stamps[:-1],
     }
 
     return episode_info
