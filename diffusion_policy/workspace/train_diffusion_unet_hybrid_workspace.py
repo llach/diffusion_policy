@@ -11,6 +11,7 @@ import copy
 import os
 import pathlib
 import random
+from typing import Optional
 
 import hydra
 import numpy as np
@@ -51,7 +52,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
         # configure model
         self.model: DiffusionUnetHybridImagePolicy = hydra.utils.instantiate(cfg.policy)
 
-        self.ema_model: DiffusionUnetHybridImagePolicy = None
+        self.ema_model: Optional[DiffusionUnetHybridImagePolicy] = None
         if cfg.training.use_ema:
             self.ema_model = copy.deepcopy(self.model)
 
@@ -92,6 +93,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
 
         self.model.set_normalizer(normalizer)
         if cfg.training.use_ema:
+            assert self.ema_model is not None
             self.ema_model.set_normalizer(normalizer)
 
         # configure lr scheduler
@@ -107,7 +109,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
         )
 
         # configure ema
-        ema: EMAModel = None
+        ema: Optional[EMAModel] = None
         if cfg.training.use_ema:
             ema = hydra.utils.instantiate(cfg.ema, model=self.ema_model)
 
@@ -120,12 +122,9 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
             # configure logging
             wandb_run = wandb.init(
                 dir=str(self.output_dir),
-                config=OmegaConf.to_container(cfg, resolve=True),
                 **cfg.logging,
             )
-            wandb.config.update({
-                "output_dir": self.output_dir,
-            })
+            wandb.config = OmegaConf.to_container(cfg, resolve=True)
         else:
             wandb_run = None
 
@@ -189,6 +188,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
 
                         # update ema
                         if cfg.training.use_ema:
+                            assert ema is not None
                             ema.step(self.model)
 
                         # logging
@@ -223,6 +223,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                 policy = self.model
                 if cfg.training.use_ema:
                     policy = self.ema_model
+                assert policy is not None
                 policy.eval()
 
                 # run rollout
