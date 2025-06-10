@@ -32,7 +32,7 @@ def get_closest_idx(stamp, stamps):
     "-o",
     "--output",
     help="Zarr path",
-    default="/home/obarbany/code/diffusion_policy/data/unstack_cloud_224.zarr",
+    default="/home/obarbany/code/diffusion_policy/data/unstack/unstack_cloud_224.zarr",
 )
 @click.option("-or", "--out_res", type=str, default="224,224")
 @click.option("-cl", "--compression_level", type=int, default=99)

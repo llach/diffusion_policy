@@ -51,6 +51,7 @@ def get_episode_info(path):
         ts = ts[unique_indices]
         eef_poses = eef_poses[unique_indices]
 
+    # TODO: Verify if this is correct with new data recording
     delay = (
         ts[-1] - rgb_stamps[-1]
     )  # there was delay in the timestamps. this fixes it. an absolute HACK
@@ -64,7 +65,7 @@ def get_episode_info(path):
     # Discard the last observation as it has no action associated with it
     episode_data = dict()
     episode_data["eef_pos"] = interpolated_eef_poses[:-1].astype(np.float32)
-    episode_data["gripper_open"] = interpolated_gripper[:-1].astype(np.uint8)
+    episode_data["gripper_open"] = interpolated_gripper[:-1].astype(bool)
     # Actions are the next EEF pose
     episode_data["action"] = np.concatenate(
         (interpolated_eef_poses[1:], interpolated_gripper[1:]), axis=-1
