@@ -59,15 +59,16 @@ def get_episode_info(path):
     interpolator = PoseTrajectoryInterpolator(times=ts, poses=eef_poses)
     interpolated_eef_poses = interpolator(rgb_stamps)
 
+    interpolated_gripper = np.expand_dims(np.array(rgb_stamps) < gripper_close_time, axis=-1)
+
     # Discard the last observation as it has no action associated with it
     episode_data = dict()
-    episode_data["eef_pos"] = interpolated_eef_poses[:-1, :3].astype(np.float32)
-    episode_data["eef_rot_axis_angle"] = interpolated_eef_poses[:-1, 3:].astype(np.float32)
-    episode_data["gripper_open"] = np.expand_dims(
-        np.array(rgb_stamps) < gripper_close_time, axis=-1
-    )[:-1].astype(np.uint8)
+    episode_data["eef_pos"] = interpolated_eef_poses[:-1].astype(np.float32)
+    episode_data["gripper_open"] = interpolated_gripper[:-1].astype(np.uint8)
     # Actions are the next EEF pose
-    episode_data["action"] = interpolated_eef_poses[1:]
+    episode_data["action"] = np.concatenate(
+        (interpolated_eef_poses[1:], interpolated_gripper[1:]), axis=-1
+    ).astype(np.float32)
 
     episode_info = {
         "episode_data": episode_data,

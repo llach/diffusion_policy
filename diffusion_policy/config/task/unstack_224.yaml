@@ -8,7 +8,7 @@ shape_meta: &shape_meta # acceptable types: rgb, low_dim
       type: rgb
       horizon: ${n_obs_steps}
     eef_pos:
-      shape: [3]
+      shape: [6]
       type: low_dim
       horizon: ${n_obs_steps}
     gripper_open:
@@ -16,7 +16,7 @@ shape_meta: &shape_meta # acceptable types: rgb, low_dim
       type: low_dim
       horizon: ${n_obs_steps}
   action:
-    shape: [3]
+    shape: [7]
     horizon: ${horizon}
 
 env_runner:
