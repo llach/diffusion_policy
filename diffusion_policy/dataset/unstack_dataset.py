@@ -23,10 +23,29 @@ class UnstackDataset(BaseImageDataset):
         seed=42,
         val_ratio=0.0,
         max_train_episodes=None,
+        action_type="absolute",
     ):
+        """UnstackDataset is a dataset for unstacking images and their corresponding actions.
+
+        Args:
+            zarr_path: Path to the Zarr dataset.
+            horizon: Number of steps to unstack. Defaults to 1.
+            pad_before: Number of frames to pad before the action. Defaults to 0.
+            pad_after: Number of frames to pad after the action. Defaults to 0.
+            seed: Random seed for sampling. Defaults to 42.
+            val_ratio: Ratio of episodes to use for validation. Defaults to 0.0.
+            max_train_episodes: Maximum number of training episodes. Defaults to None.
+            action_type: Type of action representation. We support the "relative", "delta",
+                and "absolute" action types. Refer to the UMI paper, Figure 6 for details
+                (https://umi-gripper.github.io/umi.pdf). Defaults to "relative".
+
+        Raises:
+            FileNotFoundError: If the Zarr path does not exist.
+        """
 
         super().__init__()
 
+        self.action_type = action_type
         if not os.path.exists(zarr_path):
             raise FileNotFoundError(f"Zarr path {os.path.abspath(zarr_path)} does not exist.")
 
@@ -77,12 +96,37 @@ class UnstackDataset(BaseImageDataset):
     def __len__(self) -> int:
         return len(self.sampler)
 
-    @staticmethod
-    def _sample_to_data(sample):
+    def _sample_to_data(self, sample):
         image = np.moveaxis(sample["img"], -1, 1) / 255
 
         eef_pos = sample["eef_pos"].astype(np.float32)
         gripper_open = sample["gripper_open"].astype(np.float32)
+
+        action = sample["action"].astype(np.float32)
+
+        if self.action_type in ["relative", "delta"]:
+            # Need the previous action to have as reference
+            if action.shape[-1] == eef_pos.shape[-1]:
+                prev_action = eef_pos[0]
+            elif action.shape[-1] == eef_pos.shape[-1] + gripper_open.shape[-1]:
+                prev_action = np.concatenate((eef_pos[0], gripper_open[0]), axis=-1)
+            else:
+                raise ValueError(
+                    f"Relative and delta actions only supported when action is the shifted eef_pos"
+                    "or eef_pos and gripper_open concatenated. In this case, "
+                    f"the action shape {action.shape} does not match eef_pos shape {eef_pos.shape} "
+                    f"or its concatenation with the gripper_open shape {gripper_open.shape}."
+                )
+
+            if self.action_type == "relative":
+                # Relative action is the difference between the current and previous eef_pos
+                action = action - prev_action
+            elif self.action_type == "delta":
+                # Each action is relative to the previous action
+                action = np.concatenate((action[:1] - prev_action, np.diff(action, axis=0)))
+        elif self.action_type == "absolute":
+            # Do nothing, action is already absolute
+            pass
 
         data = {
             "obs": {
@@ -90,7 +134,7 @@ class UnstackDataset(BaseImageDataset):
                 "eef_pos": eef_pos,  # T, 3
                 "gripper_open": gripper_open,  # T, 1
             },
-            "action": sample["action"].astype(np.float32),  # T, 3
+            "action": action,  # T, 3
         }
         return data
 

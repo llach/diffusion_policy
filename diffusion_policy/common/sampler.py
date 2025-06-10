@@ -15,7 +15,9 @@ def create_indices(
     pad_after: int = 0,
     debug: bool = True,
 ) -> np.ndarray:
-    episode_mask.shape == episode_ends.shape
+    assert (
+        episode_mask.shape == episode_ends.shape
+    ), "episode_mask must have the same shape as episode_ends"
     pad_before = min(max(pad_before, 0), sequence_length - 1)
     pad_after = min(max(pad_after, 0), sequence_length - 1)
 
@@ -100,10 +102,11 @@ class SequenceSampler:
             keys = list(replay_buffer.keys())
 
         episode_ends = replay_buffer.episode_ends[:]
+        assert isinstance(episode_ends, np.ndarray), "episode_ends must be a numpy array"
         if episode_mask is None:
             episode_mask = np.ones(episode_ends.shape, dtype=bool)
 
-        if np.any(episode_mask):
+        if episode_mask is not None and np.any(episode_mask):
             indices = create_indices(
                 episode_ends,
                 sequence_length=sequence_length,
@@ -129,6 +132,7 @@ class SequenceSampler:
         result = dict()
         for key in self.keys:
             input_arr = self.replay_buffer[key]
+            assert isinstance(input_arr, np.ndarray), f"Key {key} must be a numpy array"
             # performance optimization, avoid small allocation if possible
             if key not in self.key_first_k:
                 sample = input_arr[buffer_start_idx:buffer_end_idx]
@@ -144,9 +148,7 @@ class SequenceSampler:
                 try:
                     sample[:k_data] = input_arr[buffer_start_idx : buffer_start_idx + k_data]
                 except Exception as e:
-                    import pdb
-
-                    pdb.set_trace()
+                    raise ValueError(f"Error loading data for key {key} at idx {idx}: {e}") from e
             data = sample
             if (sample_start_idx > 0) or (sample_end_idx < self.sequence_length):
                 data = np.zeros(
