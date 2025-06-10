@@ -10,7 +10,7 @@ def get_intersection_slice_mask(
 ):
     assert len(shape) == len(dim_slices)
     mask = torch.zeros(size=shape, dtype=torch.bool, device=device)
-    mask[dim_slices] = True
+    mask[dim_slices] = True  # type: ignore
     return mask
 
 
@@ -87,6 +87,8 @@ class LowdimMaskGenerator(ModuleAttrMixin):
         obs_mask = (steps.T < obs_steps).T.reshape(B, T, 1).expand(B, T, D)
         obs_mask = obs_mask & is_obs_dim
 
+        mask = obs_mask
+
         # generate action mask
         if self.action_visible:
             action_steps = torch.maximum(
@@ -95,8 +97,6 @@ class LowdimMaskGenerator(ModuleAttrMixin):
             action_mask = (steps.T < action_steps).T.reshape(B, T, 1).expand(B, T, D)
             action_mask = action_mask & is_action_dim
 
-        mask = obs_mask
-        if self.action_visible:
             mask = mask | action_mask
 
         return mask
@@ -171,6 +171,8 @@ class KeypointMaskGenerator(ModuleAttrMixin):
             )
             action_mask = (steps.T < action_steps).T.reshape(B, T, 1).expand(B, T, D)
             action_mask = action_mask & is_action_dim
+        else:
+            action_mask = None
 
         # generate keypoint mask
         if self.time_independent:
@@ -185,7 +187,7 @@ class KeypointMaskGenerator(ModuleAttrMixin):
                     visible_dims,
                     torch.ones((B, T, self.context_dim), dtype=torch.bool, device=device),
                 ],
-                axis=-1,
+                dim=-1,
             )
             keypoint_mask = visible_dims_mask
         else:
@@ -200,7 +202,7 @@ class KeypointMaskGenerator(ModuleAttrMixin):
                     visible_dims,
                     torch.ones((B, self.context_dim), dtype=torch.bool, device=device),
                 ],
-                axis=-1,
+                dim=-1,
             )
             keypoint_mask = visible_dims_mask.reshape(B, 1, D).expand(B, T, D)
         keypoint_mask = keypoint_mask & is_obs_dim
@@ -216,10 +218,3 @@ class KeypointMaskGenerator(ModuleAttrMixin):
             mask = mask | context_mask
 
         return mask
-
-
-def test():
-    # kmg = KeypointMaskGenerator(2,2, random_obs_steps=True)
-    # self = KeypointMaskGenerator(2,2,context_dim=2, action_visible=True)
-    # self = KeypointMaskGenerator(2,2,context_dim=0, action_visible=True)
-    self = LowdimMaskGenerator(2, 20, max_n_obs_steps=3, action_visible=True)
