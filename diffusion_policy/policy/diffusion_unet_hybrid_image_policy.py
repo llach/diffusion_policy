@@ -94,7 +94,7 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
             device="cpu",
         )
 
-        obs_encoder = policy.nets["policy"].nets["encoder"].nets["obs"]
+        obs_encoder = policy.nets["policy"].nets["encoder"].nets["obs"]  # type: ignore
 
         if obs_encoder_group_norm:
             # replace batch norm with group norm
@@ -102,7 +102,7 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
                 root_module=obs_encoder,
                 predicate=lambda x: isinstance(x, nn.BatchNorm2d),
                 func=lambda x: nn.GroupNorm(
-                    num_groups=x.num_features // 16, num_channels=x.num_features
+                    num_groups=x.num_features // 16, num_channels=x.num_features  # type: ignore
                 ),
             )
             # obs_encoder.obs_nets['agentview_image'].nets[0].nets
@@ -116,8 +116,8 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
                     input_shape=x.input_shape,
                     crop_height=x.crop_height,
                     crop_width=x.crop_width,
-                    num_crops=x.num_crops,
-                    pos_enc=x.pos_enc,
+                    num_crops=x.num_crops,  # type: ignore
+                    pos_enc=x.pos_enc,  # type: ignore
                 ),
             )
 
@@ -160,7 +160,7 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
         self.kwargs = kwargs
 
         if num_inference_steps is None:
-            num_inference_steps = noise_scheduler.config.num_train_timesteps
+            num_inference_steps = noise_scheduler.config["num_train_timesteps"]
         self.num_inference_steps = num_inference_steps
 
         print("Diffusion params: %e" % sum(p.numel() for p in self.model.parameters()))
@@ -199,8 +199,8 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
 
             # 3. compute previous image: x_t -> x_t-1
             trajectory = scheduler.step(
-                model_output, t, trajectory, generator=generator, **kwargs
-            ).prev_sample
+                model_output, int(t), trajectory, generator=generator, **kwargs
+            ).prev_sample  # type: ignore
 
         # finally make sure conditioning is enforced
         trajectory[condition_mask] = condition_data[condition_mask]
@@ -231,7 +231,9 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
         global_cond = None
         if self.obs_as_global_cond:
             # condition through global feature
-            this_nobs = dict_apply(nobs, lambda x: x[:, :To, ...].reshape(-1, *x.shape[2:]))
+            this_nobs = dict_apply(
+                nobs, lambda x: x[:, :To, ...].reshape(-1, *x.shape[2:])  # type: ignore
+            )
 
             nobs_features = self.obs_encoder(this_nobs)
             # reshape back to B, Do
@@ -241,7 +243,9 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
             cond_mask = torch.zeros_like(cond_data, dtype=torch.bool)
         else:
             # condition through impainting
-            this_nobs = dict_apply(nobs, lambda x: x[:, :To, ...].reshape(-1, *x.shape[2:]))
+            this_nobs = dict_apply(
+                nobs, lambda x: x[:, :To, ...].reshape(-1, *x.shape[2:])  # type: ignore
+            )
             nobs_features = self.obs_encoder(this_nobs)
             # reshape back to B, To, Do
             nobs_features = nobs_features.reshape(B, To, -1)
@@ -271,7 +275,34 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
     def set_normalizer(self, normalizer: LinearNormalizer):
         self.normalizer.load_state_dict(normalizer.state_dict())
 
-    def compute_loss(self, batch):
+    def compute_loss(self, batch) -> torch.Tensor:
+        """Compute the loss for the given batch.
+        This method normalizes the input, applies the observation encoder,
+        generates the impainting mask, and computes the loss based on the
+        predicted noise residual.
+        It handles both local and global conditioning based on the
+        `obs_as_global_cond` flag.
+        The loss is computed as the mean squared error between the predicted
+        noise and the target noise or trajectory, depending on the
+        `prediction_type` of the noise scheduler.
+        The method also ensures that the conditioning is applied correctly
+        by masking the input data appropriately.
+
+        Args:
+            batch: Dictionary containing the "obs" and "action" keys.
+            The "obs" key should contain the observations, which are generally structured
+            as a dictionary with keys corresponding to different observation modalities
+            (e.g., "image", "eef_pos", "gripper_open"). The "action" key should
+            contain the actions taken, typically as a tensor of shape (B, T, Da),
+            where B is the batch size, T is the time horizon, and Da is the action dimension.
+
+        Raises:
+            ValueError: If the `prediction_type` of the noise scheduler is not supported.
+
+        Returns:
+            torch.Tensor: The computed loss value, which is a scalar tensor representing the mean
+        """
+
         # normalize input
         assert "valid_mask" not in batch
         nobs = self.normalizer.normalize(batch["obs"])
@@ -287,14 +318,15 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
         if self.obs_as_global_cond:
             # reshape B, T, ... to B*T
             this_nobs = dict_apply(
-                nobs, lambda x: x[:, : self.n_obs_steps, ...].reshape(-1, *x.shape[2:])
+                nobs,  # type: ignore
+                lambda x: x[:, : self.n_obs_steps, ...].reshape(-1, *x.shape[2:]),
             )
             nobs_features = self.obs_encoder(this_nobs)
             # reshape back to B, Do
             global_cond = nobs_features.reshape(batch_size, -1)
         else:
             # reshape B, T, ... to B*T
-            this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))
+            this_nobs = dict_apply(nobs, lambda x: x.reshape(-1, *x.shape[2:]))  # type: ignore
             nobs_features = self.obs_encoder(this_nobs)
             # reshape back to B, T, Do
             nobs_features = nobs_features.reshape(batch_size, horizon, -1)
@@ -309,11 +341,13 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
         bsz = trajectory.shape[0]
         # Sample a random timestep for each image
         timesteps = torch.randint(
-            0, self.noise_scheduler.config.num_train_timesteps, (bsz,), device=trajectory.device
+            0, self.noise_scheduler.config["num_train_timesteps"], (bsz,), device=trajectory.device
         ).long()
         # Add noise to the clean images according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_trajectory = self.noise_scheduler.add_noise(trajectory, noise, timesteps)
+        noisy_trajectory = self.noise_scheduler.add_noise(
+            trajectory, noise, timesteps  # type: ignore
+        )
 
         # compute loss mask
         loss_mask = ~condition_mask
@@ -326,7 +360,7 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
             noisy_trajectory, timesteps, local_cond=local_cond, global_cond=global_cond
         )
 
-        pred_type = self.noise_scheduler.config.prediction_type
+        pred_type = self.noise_scheduler.config["prediction_type"]
         if pred_type == "epsilon":
             target = noise
         elif pred_type == "sample":
