@@ -1,4 +1,3 @@
-import math
 from typing import Dict, Tuple
 
 import robomimic.models.base_nets as rmbn
@@ -7,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from einops import rearrange, reduce
+from einops import reduce
 from robomimic.algo import algo_factory
 from robomimic.algo.algo import PolicyAlgo
 
